@@ -806,6 +806,13 @@ ok $y->flowing->_convert_int(cdouble->enum)->fflows, 'flowing -> converted has "
 }
 
 {
+eval {czip(float(3), float(2), cdouble(0)->slice(''))};
+like $@, qr/convert output ndarray.*with.*parent/;
+czip(float(3), float(2), my $out_cd = cdouble(0));
+is_pdl $out_cd, cdouble('3+2i');
+}
+
+{
 my $x = sequence 3;
 my $c = $x->_convert_int(cdouble->enum);
 isnt $c->trans_parent, undef, 'converted has trans_parent';

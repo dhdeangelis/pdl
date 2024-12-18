@@ -1109,7 +1109,7 @@ pdl_error pdl_type_coerce(pdl_trans *trans) {
   char p2child_has_badvalue = (vtable->npdls == 2 && pdls[0]->has_badvalue
       && (vtable->par_flags[1] & PDL_PARAM_ISCREATEALWAYS));
   PDL_Anyval parent_badvalue = p2child_has_badvalue ? pdls[0]->badvalue : (PDL_Anyval){PDL_INVALID, {0}};
-  PDL_Indx i, nchildren = vtable->npdls - vtable->nparents;
+  PDL_Indx i, nparents = vtable->nparents, nchildren = vtable->npdls - nparents;
   /* copy the "real" (passed-in) outputs to the end-area to use as actual
     outputs, possibly after being converted, leaving the passed-in ones
     alone to be picked up for use in CopyBadStatusCode */
@@ -1134,6 +1134,8 @@ pdl_error pdl_type_coerce(pdl_trans *trans) {
       pdl->datatype = new_dtype;
     } else if (new_dtype != pdl->datatype) {
       PDLDEBUG_f(printf("pdl_type_coerce (%s) pdl=%"IND_FLAG" from %d to %d\n", vtable->name, i, pdl->datatype, new_dtype));
+      if (i >= nparents && pdl->trans_parent && pdl->trans_parent != trans)
+        return pdl_make_error(PDL_EFATAL, "%s: cannot convert output ndarray %s from type %d to %d with parent", vtable->name, vtable->par_names[i], pdl->datatype, new_dtype);
       pdl = pdl_get_convertedpdl(pdl, new_dtype);
       if (!pdl)
         return pdl_make_error(PDL_EFATAL, "%s got NULL pointer from get_convertedpdl on param %s", vtable->name, vtable->par_names[i]);
