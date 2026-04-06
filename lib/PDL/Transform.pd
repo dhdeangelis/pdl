@@ -3889,7 +3889,7 @@ points exactly map to the same number of other arbitrarily chosen points.  They
 have the property that straight lines remain straight after transformation.
 
 You can specify your projective transformation directly in homogeneous
-coordinates, or (in 2 dimensions only) as a set
+coordinates, or (as of 2.104, not just in 2 dimensions) as a set
 of C<ncoords + 2> unique points that
 are mapped one to the other by the transformation.
 
@@ -3897,7 +3897,7 @@ Projective transforms are quasi-linear because they are most easily
 described as a linear transformation in homogeneous coordinates
 (e.g. (x',y',w) where w is a normalization factor: x = x'/w, etc.).
 In those coordinates, an N-D projective transformation is represented
-as simple multiplication of an N+1-vector by an N+1 x N+1 matrix,
+as simple multiplication of an N+1-vector by an M+1 x N+1 matrix,
 whose lower-right corner value is 1.
 
 If the bottom row of the matrix consists of all zeroes, then the
@@ -3915,8 +3915,9 @@ OPTIONS:
 
 =item m, mat, matrix, Matrix
 
-If specified, this is the homogeneous-coordinate matrix to use.  It must
-be N+1 x N+1, for an N-dimensional transformation.
+If specified, this is the homogeneous-coordinate matrix to use.
+Works with non-square matrix, so M+1 x N+1, for an N-to-M-dimensional
+transformation.
 
 =item src, from, I<and> dst, to
 
@@ -3927,10 +3928,7 @@ That number must be, where C<m,n> are the number of destination, source
 dimensions: C<((m+1)*(n+1)-1)/n>.
 The ndarrays are dimensioned C<(coords,N)>.
 The homogeneous-coordinate matrix is calculated from them.
-You should feed in a
-C<ncoord x 2 x ncoord+2> PDL, where the 0 dimension runs over
-coordinate, the 1 dimension runs between input
-and output, and the 2 dimension runs over points. For example, specifying
+For example, specifying
 
   src => pdl([ [0,0], [0,1], [5,9], [9,4] ])
   dst => pdl([ [0,0], [0,1], [5,8], [9,3] ])
@@ -3938,13 +3936,15 @@ and output, and the 2 dimension runs over points. For example, specifying
 maps the origin and the point (0,1) to themselves, the point (5,9)
 to (5,8), and the point (9,4) to (9,3).
 
+Added in 2.104. Works on any number of dimensions, the same for
+C<src> and C<dst> (a homography).
+
 =item p, point, points, Points
 
 You are encouraged to use the more general C<src,dst> options given above.
 
 If specified, this is the set of C<ncoords + 2> points that should
-be mapped one to the other.
-You should feed in a
+be mapped one to the other. Feed in a
 C<2 x 2 x 4> PDL, where the 0 dimension runs over
 coordinate, the 1 dimension runs between input
 and output, and the 2 dimension runs over points. For example, specifying
@@ -3960,25 +3960,56 @@ This is similar to the behavior of fitwarp2d with a quadratic polynomial.
 
 =cut
 
+sub _normalise_points {
+  my ($pts) = @_;
+  my $d = $pts->dim(0); # pts: (dim,N) matrix where each row is a point
+  my $centroid = $pts->t->avgover;
+  my $shifted = $pts - $centroid; # shift points to origin
+  # 2. Scale so average distance to origin is sqrt(dim)
+  my $scale = sqrt($d) / avg($shifted->magnover); # keep coord vals close to 1
+  # T combines scaling and translation: T = Scale * Translate
+  my $T = identity($d + 1);
+  $T->diagonal(0,1)->slice(":-2") .= $scale;
+  $T->slice("(-1),:-2") .= -$scale * $centroid;
+  my $pts_h = $pts->append(1) x $T->t; # Convert to homogeneous coords, apply T
+  ($pts_h, $T);
+}
+
+sub block_rotate :lvalue {
+  my ($m, $width) = @_;
+  die "block_rotate: given undef width" if !defined $width;
+  my $height = $m->dim(1);
+  $m->rotate(-$width*sequence(indx,$height))->slice('0:'.($width-1));
+}
+
 # Construct the system of N equations to find the projective transform
 sub construct_DLT {
   my ($pts_src, $pts_dst) = @_;
   die "t_projective: must supply same number of src and dst points\n"
     unless $pts_src->dim(1) == $pts_dst->dim(1);
-  my $d0 = $pts_src->dim(0);
-  my $p_appended = $pts_src->append([1, (0) x ($d0+1)]);
-  my $M = $p_appended->append(
-    $p_appended->dice_axis(0, [$d0+1..($d0*2+1), 0..$d0])
-  )->splitdim(0,($d0+1)*2)->clump(1,2);
-  $M->append(-outer($pts_src, $pts_dst)->clump(1,2));
+  my ($pts_src_h, $T_src) = _normalise_points($pts_src); # (n+1,N) homogeneous
+  my ($pts_dst_h, $T_dst) = _normalise_points($pts_dst); # (m+1,N) homogeneous
+  my ($src_dim, $N) = $pts_src_h->dims; # n+1
+  my ($dst_dim) = $pts_dst_h->dims;     # m+1
+  my $num_eqs = $N * ($dst_dim - 1); # Each point match provides (m) equations
+  my $num_vars = $src_dim * $dst_dim;
+  my $A = zeroes($num_vars-$src_dim, $num_eqs);
+  # Mapping: xp_last * (P_j * x) - xp_j * (P_last * x) = 0
+  # Fill coefficients for the j-th row of P
+  my $mult = $pts_dst_h->slice(-1) * $pts_src_h;
+  block_rotate($A, $src_dim) .= dupN($mult, $dst_dim-1)->splitdim(0,$src_dim)->clump(1,2);
+  # Fill coefficients for the last row of P
+  $A = $A->append(-outer($pts_src_h, $pts_dst_h->slice(":-2"))->clump(1,2));
+  ($A, $T_src, $T_dst);
 }
 
 sub solve_DLT {
-  my ($A, $ndim, $mdim, $pts_dst) = @_;
-  my $matrix = ones($ndim, $mdim);
-  $matrix->flat->slice("0:-2") .=
-    ($A->inv x $pts_dst->flat->t)->t;
-  $matrix;
+  my ($A, $T_src, $T_dst) = @_;
+  my ($U, $S, $V) = svd($A, 1); # full SVD
+  my $P_norm = $V->slice(-1)->reshape(map $_->dim(0), $T_src, $T_dst); # reshape smallest singular value vector
+  my $P = $T_dst->inv x $P_norm x $T_src; # Denormalize
+  my $div_value = $P->slice(($T_dst->dim(0)-1) x 2); # scaling for numerical stability
+  $P / $div_value;
 }
 
 sub t_projective {
@@ -4009,10 +4040,9 @@ sub t_projective {
     }
     die "t_projective: must supply either 'p', 'm', or 'src' and 'dst' options"
       if grep !defined, $pts_src, $pts_dst;
-    my $d0 = $pts_src->dim(0);
-    my $M = construct_DLT($pts_src, $pts_dst);
+    my ($A, $T_src, $T_dst) = construct_DLT($pts_src, $pts_dst);
     # Solve the system
-    $matrix = solve_DLT($M, ($d0+1) x 2, $pts_dst);
+    $matrix = solve_DLT($A, $T_src, $T_dst);
   }
   $me->{params}{matrix} = $matrix;
   $me->{params}{matinv} = $matrix->inv if $matrix->dim(0) == $matrix->dim(1);

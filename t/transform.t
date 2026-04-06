@@ -42,13 +42,35 @@ use Test::Exception;
   is_pdl +(my $p_in = pdl('0.5 0; 1 0.5; 0.5 1; 0 0.5'))->apply($t_proj), my $p_out = pdl('1.5 0.5; 1 2.5; -0.5 3.5; 0 1.5'), 't_projective works';
   is_pdl $p_out->invert($t_proj), $p_in, 't_projective inv';
   $t_proj = t_projective(
-    src=>$t_points->slice(",(0)"), dst=>$t_points->slice(",(1)"),
+    src => my $src2 = $t_points->slice(",(0)"),
+    dst => my $dst2 = $t_points->slice(",(1)"),
   );
   is_pdl $t_proj->{params}{matrix}, $exp_proj;
+  my ($A_2) = PDL::Transform::construct_DLT($src2, $dst2);
+  is_pdl $A_2, pdl('
+    -1 -1 1 0 0 0  0.365966  0.365966 -0.365966;
+    0 0 0 -1 -1 1 -1.463864 -1.463864  1.463864;
+    1 -1 1 0 0 0  -1.097898  1.097898 -1.097898;
+    0 0 0 1 -1 1   0.731932 -0.731932  0.731932;
+    -1 1 1 0 0 0  -1.097898  1.097898  1.097898;
+    0 0 0 -1 1 1   0.731932 -0.731932 -0.731932;
+    1 1 1 0 0 0    0.365966  0.365966  0.365966;
+    0 0 0 1 1 1   -1.463864 -1.463864 -1.463864
+  '), 'right design matrix';
   $t_proj = t_projective(
     m => pdl('-500 0 500 0; 0 500 500 0; 0 0 1 0'),
   );
   is_pdl $t_proj->apply(my $in32 = pdl('0 -1 -1; 4 2 -10')), my $out32 = pdl('500 1000; 700 400'), 'project 3->2 with matrix';
+  $t_proj = t_projective(
+    src => my $src3 = pdl('0 0 0; 1 0 0;  0 1 0; 1 1 0; 0 0 1'),
+    dst => my $dst3 = pdl('1 0 0; 2 1 0; -1 3 0; 0 4 0; 1 0 1'),
+  );
+  is_pdl +($p_in = pdl('
+    0.5 0 0; 1 0.5 0; 0.5 1 0; 0 0.5 0
+  '))->apply($t_proj), $p_out = pdl('
+    1.5 0.5 0; 1 2.5 0; -0.5 3.5 0; 0 1.5 0
+  '), 'project 3->3 with src/dst';
+  is_pdl $p_out->invert($t_proj), $p_in, 'invert 3->3 with src/dst';
 
   # y gets log scale, from example
   my $lookup = 4 * xvals(5,5)->cat(10**(yvals(5,5)/(100/4)) * 4/10**2.55);
