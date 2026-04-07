@@ -3997,7 +3997,7 @@ sub construct_DLT {
   # Mapping: xp_last * (P_j * x) - xp_j * (P_last * x) = 0
   # Fill coefficients for the j-th row of P
   my $mult = $pts_dst_h->slice(-1) * $pts_src_h;
-  block_rotate($A, $src_dim) .= dupN($mult, $dst_dim-1)->splitdim(0,$src_dim)->clump(1,2);
+  block_rotate($A, $src_dim) .= $mult->dummy(1,$dst_dim-1)->clump(1,2);
   # Fill coefficients for the last row of P
   $A = $A->append(-outer($pts_src_h, $pts_dst_h->slice(":-2"))->clump(1,2));
   ($A, $T_src, $T_dst);
