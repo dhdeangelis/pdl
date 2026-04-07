@@ -38,14 +38,12 @@ use Test::Exception;
 
   my $t_points = pdl('[0 0; 1 0] [1 0; 2 1] [0 1; -1 3] [1 1; 0 4]'); # xy,io,npoints
   my $t_proj = t_projective(p=>$t_points);
-  is_pdl $t_proj->{params}{matrix}, my $exp_proj = pdl('1 -2 1; 1 3 0; 0 0 1');
   is_pdl +(my $p_in = pdl('0.5 0; 1 0.5; 0.5 1; 0 0.5'))->apply($t_proj), my $p_out = pdl('1.5 0.5; 1 2.5; -0.5 3.5; 0 1.5'), 't_projective works';
   is_pdl $p_out->invert($t_proj), $p_in, 't_projective inv';
   $t_proj = t_projective(
     src => my $src2 = $t_points->slice(",(0)"),
     dst => my $dst2 = $t_points->slice(",(1)"),
   );
-  is_pdl $t_proj->{params}{matrix}, $exp_proj;
   my ($A_2) = PDL::Transform::construct_DLT($src2, $dst2);
   is_pdl $A_2, pdl('
     -1 -1 1 0 0 0  0.365966  0.365966 -0.365966;
@@ -60,7 +58,12 @@ use Test::Exception;
   $t_proj = t_projective(
     m => pdl('-500 0 500 0; 0 500 500 0; 0 0 1 0'),
   );
-  is_pdl $t_proj->apply(my $in32 = pdl('0 -1 -1; 4 2 -10')), my $out32 = pdl('500 1000; 700 400'), 'project 3->2 with matrix';
+  is_pdl $t_proj->apply(my $in32 = pdl('0 -1 -1; 4 2 -10')), my $out32 = pdl('500 1000; 700 400'), 'project perspective 3->2 with matrix';
+  $t_proj = t_projective(
+    src => my $src32perspective = pdl('1 1 1; -1 1 1; -1 -1 1; 1 -1 1; 2 2 2; -2 -2 2'),
+    dst => my $dst32perspective = pdl('0 1000; 1000 1000; 1000 0; 0 0; 0 1000; 1000 0'),
+  );
+  is_pdl $t_proj->apply($in32), $out32, 'project perspective 3->2 with src/dst';
   $t_proj = t_projective(
     src => my $src3 = pdl('0 0 0; 1 0 0;  0 1 0; 1 1 0; 0 0 1'),
     dst => my $dst3 = pdl('1 0 0; 2 1 0; -1 3 0; 0 4 0; 1 0 1'),

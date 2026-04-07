@@ -3888,9 +3888,17 @@ can continuously warp an image plane so that C<ncoords + 2> arbitrarily chosen
 points exactly map to the same number of other arbitrarily chosen points.  They
 have the property that straight lines remain straight after transformation.
 
+=for example
+
+  # perspective projection 3D -> 2D
+  $t_proj = t_projective(
+    src => pdl('1 1 1; -1 1 1; -1 -1 1; 1 -1 1; 2 2 2; -2 -2 2'),
+    dst => pdl('0 1000; 1000 1000; 1000 0; 0 0; 0 1000; 1000 0'),
+  );
+
 You can specify your projective transformation directly in homogeneous
 coordinates, or (as of 2.104, not just in 2 dimensions) as a set
-of C<ncoords + 2> unique points that
+of unique points that
 are mapped one to the other by the transformation.
 
 Projective transforms are quasi-linear because they are most easily
@@ -3936,8 +3944,7 @@ For example, specifying
 maps the origin and the point (0,1) to themselves, the point (5,9)
 to (5,8), and the point (9,4) to (9,3).
 
-Added in 2.104. Works on any number of dimensions, the same for
-C<src> and C<dst> (a homography).
+Added in 2.104. Works on any number of dimensions.
 
 =item p, point, points, Points
 
@@ -4007,9 +4014,7 @@ sub solve_DLT {
   my ($A, $T_src, $T_dst) = @_;
   my ($U, $S, $V) = svd($A, 1); # full SVD
   my $P_norm = $V->slice(-1)->reshape(map $_->dim(0), $T_src, $T_dst); # reshape smallest singular value vector
-  my $P = $T_dst->inv x $P_norm x $T_src; # Denormalize
-  my $div_value = $P->slice(($T_dst->dim(0)-1) x 2); # scaling for numerical stability
-  $P / $div_value;
+  $T_dst->inv x $P_norm x $T_src; # Denormalize
 }
 
 sub t_projective {
