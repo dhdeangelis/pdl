@@ -101,6 +101,13 @@ like($@, qr/non-divisible/, "splitdims error non-divisible");
 $x = sequence 5,5;
 $y = $x->diagonal(0,1);
 is("$y", "[0 6 12 18 24]", "diagonal");
+eval { $x->diagonal };
+like $@, qr/must have at least 1/, 'error if no dims given';
+#PDL::Core::set_debugging(1);
+eval { $x->diagonal(-1)->make_physdims };
+like $@, qr/first given dim out of range/, 'error if <0 given';
+eval { $x->diagonal(0,0) };
+like $@, qr/must be unique/, 'error if dim-index given twice';
 
 $x = sequence 10;
 eval { $y = $x->lags(1,1,1)->make_physdims };
