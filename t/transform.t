@@ -74,6 +74,13 @@ use Test::Exception;
     1.5 0.5 0; 1 2.5 0; -0.5 3.5 0; 0 1.5 0
   '), 'project 3->3 with src/dst';
   is_pdl $p_out->invert($t_proj), $p_in, 'invert 3->3 with src/dst';
+  $t_proj = t_projective(
+    # near top-left, near top-right, near bottom-left near bottom-right
+    #   far middle, far mid-right
+    src => my $src32 = pdl('-1  1 -1; 1  1 -1; -1 -1 -1; 1 -1 -1; 0 0 1; 1 0 1'),
+    dst => my $dst32 = pdl('0 0; 1000 0; 0 1000; 1000 1000; 500 500; 1000 500'),
+  );
+  is_pdl $t_proj->apply($src32), $dst32, {test_name=>'project ortho 3->2 with src/dst', atol=>10};
 
   # y gets log scale, from example
   my $lookup = 4 * xvals(5,5)->cat(10**(yvals(5,5)/(100/4)) * 4/10**2.55);
