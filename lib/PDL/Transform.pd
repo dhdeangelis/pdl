@@ -3976,6 +3976,11 @@ This is similar to the behavior of fitwarp2d with a quadratic polynomial.
 
 =cut
 
+sub sub_eps_to_0 {
+  my ($m, $eps) = @_;
+  $m * (abs($m) > $eps)
+}
+
 sub _normalise_points {
   my ($pts) = @_;
   my $d = $pts->dim(0); # pts: (dim,N) matrix where each row is a point
