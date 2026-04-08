@@ -2433,30 +2433,31 @@ END
   RedoDims => pp_line_numbers(__LINE__, <<'EOF'),
 if ($COMP(whichdims)[$COMP(whichdims_count)-1] >= $PDL(PARENT)->ndims)
   $CROAK("last given dim out of range: %"IND_FLAG" > %"IND_FLAG, $COMP(whichdims)[$COMP(whichdims_count)-1], $PDL(PARENT)->ndims-1);
-PDL_Indx nthp, nthc=0, nthd=0, cd = $COMP(whichdims)[0];
+PDL_Indx nthp, nthc=0, nthd=0, cd = $COMP(whichdims)[0],
+  *pdims = $PDL(PARENT)->dims, *cdims = $PDL(CHILD)->dims;
+for (nthd = 1; nthd < $COMP(whichdims_count); nthd++)
+  if (pdims[$COMP(whichdims)[nthd]] != pdims[cd])
+    $CROAK("Different dims indexes %"IND_FLAG" and %"IND_FLAG": %"IND_FLAG" != %"IND_FLAG,
+      cd, $COMP(whichdims)[nthd],
+      pdims[cd], pdims[$COMP(whichdims)[nthd]]);
 $SETNDIMS($PDL(PARENT)->ndims-$COMP(whichdims_count)+1);
 $DOPRIVALLOC();
 $PRIV(offs) = 0;
-for (nthp = 0; nthp < $PDL(PARENT)->ndims; nthp++) {
+for (nthd = 0, nthp = 0; nthp < $PDL(PARENT)->ndims; nthp++) {
   if (!(nthd < $COMP(whichdims_count) && nthp == $COMP(whichdims)[nthd])) {
     /* not a diagonalised dim, preserve */
     $PRIV(incs)[nthc] = $PDL(PARENT)->dimincs[nthp];
-    $PDL(CHILD)->dims[nthc] = $PDL(PARENT)->dims[nthp];
+    cdims[nthc] = pdims[nthp];
     nthc++;
     continue;
   }
   if (!nthd) {
     /* first diagonalised dim, turn into dummy */
     $PRIV(incs)[cd] = 0;
-    $PDL(CHILD)->dims[cd] = $PDL(PARENT)->dims[cd];
+    cdims[cd] = pdims[cd];
     nthc++;
   }
   nthd++; /* advance pointer into whichdims */
-  if ($PDL(CHILD)->dims[cd] != $PDL(PARENT)->dims[nthp]) {
-    $CROAK("Different dims %"IND_FLAG" and %"IND_FLAG"",
-            $PDL(CHILD)->dims[cd],
-            $PDL(PARENT)->dims[nthp]);
-  }
   $PRIV(incs)[cd] += $PDL(PARENT)->dimincs[nthp];
 }
 $SETDIMS();
