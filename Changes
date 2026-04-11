@@ -1,3 +1,5 @@
+- add Math::casinh
+
 2.104 2026-04-09
 - allaxis*vals can now take 1-D ndarrays as start and endpoints
 - PP operation for inverse Transform::t_spherical

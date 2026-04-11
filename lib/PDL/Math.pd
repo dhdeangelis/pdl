@@ -168,7 +168,7 @@ pp_addhdr('
 ');
 
 # Standard `-lm'
-my (@ufuncs1) = qw(acos asin atan cosh sinh tan tanh); # F,D only
+my (@ufuncs1) = qw(acos asin atan cosh sinh tan tanh);
 my (@ufuncs1g) = qw(ceil floor rint); # Any real type
 
 # Note:
@@ -517,7 +517,7 @@ EOF
   );
 }
 
-cequiv($_) for qw(sqrt log acos asin acosh atanh);
+cequiv($_) for qw(sqrt log acos asin asinh acosh atanh);
 
 pp_def('csqrt_up',
     GenericTypes => $AF,
