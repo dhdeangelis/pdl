@@ -1,5 +1,6 @@
 - add Math::casinh
 - add Constants::{DEG2RAD,RAD2DEG}
+- add Bad::isnan
 
 2.104 2026-04-09
 - allaxis*vals can now take 1-D ndarrays as start and endpoints
