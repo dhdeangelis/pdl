@@ -1556,16 +1556,18 @@ EOF
            "(".join(", ", map "\$$_", @{$_->[1]}).") = "
          )."$prefix$name(".join(", ", map "\$$_", @{$_->[0]}).");",
          [@{$_->[2]}]], @argsets;
-       $argsets[0][2] = ['method call'];
-       $argsets[$_][2] = [] for 1..$#argsets; # they get the idea
-       push @invocs, map [(!@{$_->[1]} ? '' :
-           @{$_->[1]} == 1 ? "\$$_->[1][0] = " :
-           "(".join(", ", map "\$$_", @{$_->[1]}).") = "
-         )."\$$_->[0][0]->$name".(
-           @{$_->[0]} <= 1 ? '' :
-           "(".join(", ", map "\$$_", @{$_->[0]}[1..$#{$_->[0]}]).")"
-         ).";",
-         [@{$_->[2]}]], grep @{$_->[0]}, @argsets;
+       if ($sig->names_in) {
+         $argsets[0][2] = ['method call'];
+         $argsets[$_][2] = [] for 1..$#argsets; # they get the idea
+         push @invocs, map [(!@{$_->[1]} ? '' :
+             @{$_->[1]} == 1 ? "\$$_->[1][0] = " :
+             "(".join(", ", map "\$$_", @{$_->[1]}).") = "
+           )."\$$_->[0][0]->$name".(
+             @{$_->[0]} <= 1 ? '' :
+             "(".join(", ", map "\$$_", @{$_->[0]}[1..$#{$_->[0]}]).")"
+           ).";",
+           [@{$_->[2]}]], grep @{$_->[0]}, @argsets;
+       }
        push @invocs, @$inplacevals;
        if ($lvalue) {
          my ($first_meth) = grep @{$_->[1]} == 1, @argsets;
